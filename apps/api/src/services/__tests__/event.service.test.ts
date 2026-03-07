@@ -121,7 +121,7 @@ describe('bounce events', () => {
   it('should create BOUNCED_HARD event for permanent bounce', async () => {
     mockPrisma.emailEvent.create.mockResolvedValue({});
     // $transaction mock executes the callback
-    mockPrisma.$transaction.mockImplementation((fn: Function) => {
+    mockPrisma.$transaction.mockImplementation((fn: (tx: any) => any) => {
       const tx = {
         suppression: { upsert: vi.fn().mockResolvedValue({}) },
         contact: { updateMany: vi.fn().mockResolvedValue({}) },
@@ -197,7 +197,7 @@ describe('bounce events', () => {
 describe('complaint events', () => {
   it('should create COMPLAINED event and auto-suppress', async () => {
     mockPrisma.emailEvent.create.mockResolvedValue({});
-    mockPrisma.$transaction.mockImplementation((fn: Function) => {
+    mockPrisma.$transaction.mockImplementation((fn: (tx: any) => any) => {
       const tx = {
         suppression: { upsert: vi.fn().mockResolvedValue({}) },
         contact: { updateMany: vi.fn().mockResolvedValue({}) },
