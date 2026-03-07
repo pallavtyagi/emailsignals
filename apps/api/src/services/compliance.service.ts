@@ -57,10 +57,10 @@ export function verifyUnsubscribeToken(token: string): {
       throw new Error('Invalid token format');
     }
 
-    const campaignId = parts[0];
-    const contactId = parts[1];
-    const timestamp = parseInt(parts[2], 10);
-    const signature = parts[3];
+    const campaignId = parts[0]!;
+    const contactId = parts[1]!;
+    const timestamp = parseInt(parts[2]!, 10);
+    const signature = parts[3]!;
 
     // Recompute signature to verify
     const payload = `${campaignId}:${contactId}:${timestamp}`;

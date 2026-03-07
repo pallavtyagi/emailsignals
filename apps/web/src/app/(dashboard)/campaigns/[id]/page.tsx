@@ -91,7 +91,7 @@ export default function CampaignDetailPage() {
     );
   }
 
-  const status = statusConfig[campaign.status] || statusConfig.draft;
+  const status = (statusConfig[campaign.status] ?? statusConfig['draft'])!;
 
   return (
     <div className="space-y-6">

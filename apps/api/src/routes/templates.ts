@@ -20,7 +20,7 @@ export async function templateRoutes(app: FastifyInstance) {
     }
 
     const templates = await prisma.template.findMany({
-      where: where as Parameters<typeof prisma.template.findMany>[0]['where'],
+      where: where as NonNullable<Parameters<typeof prisma.template.findMany>[0]>['where'],
       select: {
         id: true,
         name: true,

@@ -362,7 +362,7 @@ async function createSendJobs(
       where: { workspaceId, email: { in: emails } },
       select: { email: true },
     });
-    const suppressedEmails = new Set(suppressions.map((s) => s.email));
+    const suppressedEmails = new Set(suppressions.map((s: { email: string }) => s.email));
 
     for (const [contactId, contact] of contactMap.entries()) {
       if (suppressedEmails.has(contact.email)) {
@@ -412,16 +412,16 @@ function getWarmupLimit(
     .map(Number)
     .sort((a, b) => a - b);
 
-  if (day > days[days.length - 1]) {
+  if (days.length === 0 || day > days[days.length - 1]!) {
     // Past warm-up period, no limit
     return null;
   }
 
   // Find the matching or previous day's limit
-  let limit = WARMUP_SCHEDULE[1] || 50;
+  let limit: number = WARMUP_SCHEDULE[1] ?? 50;
   for (const d of days) {
     if (d <= day) {
-      limit = WARMUP_SCHEDULE[d];
+      limit = WARMUP_SCHEDULE[d] ?? limit;
     } else {
       break;
     }

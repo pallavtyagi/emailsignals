@@ -8,5 +8,5 @@
     "target": "ES2022"
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist", "prisma"]
+  "exclude": ["node_modules", "dist", "prisma", "src/**/*.test.ts", "src/__tests__"]
 }

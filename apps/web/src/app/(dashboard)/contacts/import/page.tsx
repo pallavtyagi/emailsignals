@@ -76,7 +76,7 @@ export default function ImportContactsPage() {
       return result;
     };
 
-    const headers = parseRow(lines[0]);
+    const headers = parseRow(lines[0]!);
     const rows = lines.slice(1, 6).map(parseRow); // Preview first 5 rows
     return { headers, rows };
   };

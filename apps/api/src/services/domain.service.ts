@@ -65,7 +65,7 @@ export async function createDomain({ workspaceId, domain }: CreateDomainParams) 
       domain,
       status: 'PENDING',
       sesIdentityArn: sesResult.identityArn || null,
-      dnsRecords,
+      dnsRecords: JSON.parse(JSON.stringify(dnsRecords)),
     },
   });
 
@@ -118,7 +118,7 @@ export async function verifyDomain(domainId: string, workspaceId: string) {
       ...(newStatus === 'VERIFIED' && !domainRecord.verifiedAt
         ? { verifiedAt: new Date() }
         : {}),
-      dnsRecords: {
+      dnsRecords: JSON.parse(JSON.stringify({
         spf: {
           type: 'TXT',
           name: domainRecord.domain,
@@ -132,7 +132,7 @@ export async function verifyDomain(domainId: string, workspaceId: string) {
           value: 'v=DMARC1; p=quarantine; rua=mailto:dmarc@signalwave.com',
           purpose: 'dmarc',
         },
-      },
+      })),
     },
   });
 

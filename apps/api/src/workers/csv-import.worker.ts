@@ -78,7 +78,7 @@ async function processCsvImport(job: Job<CsvImportJobData>) {
       const contacts: CreateContactParams[] = [];
 
       for (let i = 0; i < batch.length; i++) {
-        const row = batch[i];
+        const row = batch[i]!;
         const rowIndex = batchStart + i + 2; // +2 for 1-indexed + header row
 
         try {
@@ -100,7 +100,7 @@ async function processCsvImport(job: Job<CsvImportJobData>) {
           const msg = err instanceof Error ? err.message : 'Unknown error';
           errors.push({
             row: rowIndex,
-            email: row[getEmailColumn(columnMap)] || '',
+            email: row?.[getEmailColumn(columnMap)] || '',
             error: msg,
           });
           failed++;
@@ -128,7 +128,7 @@ async function processCsvImport(job: Job<CsvImportJobData>) {
         data: {
           processed: processed + failed,
           failed,
-          errors: errors.slice(0, 1000) as unknown as Parameters<typeof prisma.importJob.update>[0]['data']['errors'], // Cap stored errors at 1000
+          errors: errors.slice(0, 1000) as object[], // Cap stored errors at 1000
         },
       });
 
@@ -143,7 +143,7 @@ async function processCsvImport(job: Job<CsvImportJobData>) {
         status: 'COMPLETED',
         processed,
         failed,
-        errors: errors.slice(0, 1000) as unknown as Parameters<typeof prisma.importJob.update>[0]['data']['errors'],
+        errors: errors.slice(0, 1000) as object[],
         completedAt: new Date(),
       },
     });
@@ -165,7 +165,7 @@ async function processCsvImport(job: Job<CsvImportJobData>) {
         status: 'FAILED',
         processed,
         failed,
-        errors: [{ row: 0, email: '', error: `Import failed: ${msg}` }] as unknown as Parameters<typeof prisma.importJob.update>[0]['data']['errors'],
+        errors: [{ row: 0, email: '', error: `Import failed: ${msg}` }] as object[],
         completedAt: new Date(),
       },
     });

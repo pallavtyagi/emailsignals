@@ -70,7 +70,7 @@ export async function analyticsRoutes(app: FastifyInstance) {
 
       const dayMap = new Map<string, { sent: number; opens: number; clicks: number }>();
       for (const row of dailyEvents) {
-        const dateStr = new Date(row.day).toISOString().split('T')[0];
+        const dateStr = new Date(row.day).toISOString().split('T')[0]!;
         if (!dayMap.has(dateStr)) {
           dayMap.set(dateStr, { sent: 0, opens: 0, clicks: 0 });
         }
@@ -210,13 +210,7 @@ export async function analyticsRoutes(app: FastifyInstance) {
       where: {
         campaignId: id,
         ...(event_type
-          ? {
-              eventType: event_type.toUpperCase() as Parameters<
-                typeof prisma.emailEvent.findMany
-              >[0]['where'] extends { eventType?: infer T }
-                ? T
-                : never,
-            }
+          ? { eventType: event_type.toUpperCase() as 'DELIVERED' | 'OPENED' | 'CLICKED' | 'BOUNCED_HARD' | 'BOUNCED_SOFT' | 'COMPLAINED' | 'FAILED' }
           : {}),
       },
       take: parsedLimit,

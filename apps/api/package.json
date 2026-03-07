@@ -7,7 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
     "lint": "eslint src/",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "prisma generate && tsc --noEmit",
     "clean": "rm -rf dist .turbo",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",

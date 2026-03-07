@@ -146,7 +146,7 @@ export default function CampaignsPage() {
               </TableHeader>
               <TableBody>
                 {filteredCampaigns.map((campaign) => {
-                  const status = statusConfig[campaign.status] || statusConfig.draft;
+                  const status = (statusConfig[campaign.status] ?? statusConfig['draft'])!;
                   return (
                     <TableRow key={campaign.id}>
                       <TableCell>

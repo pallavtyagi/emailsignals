@@ -112,7 +112,7 @@ export default function DomainsPage() {
               </TableHeader>
               <TableBody>
                 {filteredDomains.map((domain) => {
-                  const status = statusConfig[domain.status] || statusConfig.pending;
+                  const status = (statusConfig[domain.status] ?? statusConfig['pending'])!;
                   const StatusIcon = status.icon;
                   return (
                     <TableRow key={domain.id}>

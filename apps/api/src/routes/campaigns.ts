@@ -27,14 +27,14 @@ export async function campaignRoutes(app: FastifyInstance) {
     if (query.status) where.status = query.status.toUpperCase();
 
     const campaigns = await prisma.campaign.findMany({
-      where: where as Parameters<typeof prisma.campaign.findMany>[0]['where'],
+      where: where as NonNullable<Parameters<typeof prisma.campaign.findMany>[0]>['where'],
       take: query.limit,
       orderBy: { createdAt: 'desc' },
       ...(query.after ? { cursor: { id: query.after }, skip: 1 } : {}),
     });
 
     const total = await prisma.campaign.count({
-      where: where as Parameters<typeof prisma.campaign.count>[0]['where'],
+      where: where as NonNullable<Parameters<typeof prisma.campaign.count>[0]>['where'],
     });
 
     return {

@@ -79,7 +79,7 @@ async function processDomainVerification(job: Job<DomainVerificationJobData>) {
       dmarcValid: verification.dmarcValid,
       status: newStatus as 'PENDING' | 'VERIFIED' | 'DEGRADED' | 'FAILED',
       ...(newStatus === 'VERIFIED' ? { verifiedAt: new Date() } : {}),
-      dnsRecords: {
+      dnsRecords: JSON.parse(JSON.stringify({
         spf: {
           type: 'TXT',
           name: domainRecord.domain,
@@ -93,7 +93,7 @@ async function processDomainVerification(job: Job<DomainVerificationJobData>) {
           value: 'v=DMARC1; p=quarantine; rua=mailto:dmarc@signalwave.com',
           purpose: 'dmarc',
         },
-      },
+      })),
     },
   });
 

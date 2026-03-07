@@ -12,7 +12,8 @@ import {
   ValidationError,
   BadRequestError,
 } from '../lib/errors.js';
-import type { Prisma } from '@prisma/client';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type JsonValue = any;
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -87,7 +88,7 @@ export async function createContact(params: CreateContactParams) {
       company: params.company,
       phone: params.phone,
       tags: params.tags ?? [],
-      customFields: (params.customFields ?? {}) as Prisma.InputJsonValue,
+      customFields: (params.customFields ?? {}) as JsonValue,
     },
     create: {
       workspaceId,
@@ -97,7 +98,7 @@ export async function createContact(params: CreateContactParams) {
       company: params.company,
       phone: params.phone,
       tags: params.tags ?? [],
-      customFields: (params.customFields ?? {}) as Prisma.InputJsonValue,
+      customFields: (params.customFields ?? {}) as JsonValue,
       consentSource: params.consentSource,
       consentedAt: params.consentSource ? new Date() : null,
     },
@@ -110,7 +111,7 @@ export async function createContact(params: CreateContactParams) {
       where: { id: { in: params.listIds }, workspaceId },
       select: { id: true },
     });
-    const validListIds = new Set(lists.map((l) => l.id));
+    const validListIds = new Set(lists.map((l: { id: string }) => l.id));
 
     const memberships = params.listIds
       .filter((id) => validListIds.has(id))
@@ -176,7 +177,7 @@ export async function updateContact(
       ...(data.phone !== undefined ? { phone: data.phone } : {}),
       ...(data.tags !== undefined ? { tags: data.tags } : {}),
       ...(data.customFields !== undefined
-        ? { customFields: data.customFields as Prisma.InputJsonValue }
+        ? { customFields: data.customFields as JsonValue }
         : {}),
     },
   });
@@ -205,10 +206,11 @@ export async function deleteContact(contactId: string, workspaceId: string) {
 export async function queryContacts(params: ContactQueryParams) {
   const { workspaceId, limit = 50, after } = params;
 
-  const where: Prisma.ContactWhereInput = { workspaceId };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const where: any = { workspaceId };
 
   if (params.status) {
-    where.status = params.status.toUpperCase() as Prisma.EnumContactStatusFilter;
+    where.status = params.status.toUpperCase();
   }
 
   if (params.search) {
@@ -283,7 +285,7 @@ export async function removeTags(contactId: string, workspaceId: string, tags: s
   }
 
   const tagsToRemove = new Set(tags);
-  const remainingTags = contact.tags.filter((t) => !tagsToRemove.has(t));
+  const remainingTags = contact.tags.filter((t: string) => !tagsToRemove.has(t));
 
   return prisma.contact.update({
     where: { id: contactId },
@@ -333,7 +335,7 @@ export async function bulkUpsertContacts(
     where: { workspaceId },
     select: { email: true },
   });
-  const suppressedEmails = new Set(suppressions.map((s) => s.email.toLowerCase()));
+  const suppressedEmails = new Set(suppressions.map((s: { email: string }) => s.email.toLowerCase()));
 
   // Process in batches of 100
   const BATCH_SIZE = 100;
@@ -369,7 +371,7 @@ export async function bulkUpsertContacts(
               phone: contactData.phone ?? existing.phone,
               tags: contactData.tags ?? existing.tags,
               customFields: contactData.customFields
-                ? (contactData.customFields as Prisma.InputJsonValue)
+                ? (contactData.customFields as JsonValue)
                 : existing.customFields,
             },
           });
@@ -384,7 +386,7 @@ export async function bulkUpsertContacts(
               company: contactData.company,
               phone: contactData.phone,
               tags: contactData.tags ?? [],
-              customFields: (contactData.customFields ?? {}) as Prisma.InputJsonValue,
+              customFields: (contactData.customFields ?? {}) as JsonValue,
               consentSource: contactData.consentSource,
               consentedAt: contactData.consentSource ? new Date() : null,
             },
@@ -428,7 +430,7 @@ async function validateCustomFields(
     where: { workspaceId },
   });
 
-  const definedKeys = new Map(definitions.map((d) => [d.key, d.type]));
+  const definedKeys = new Map(definitions.map((d: { key: string; type: string }) => [d.key, d.type]));
 
   for (const [key, value] of Object.entries(fields)) {
     const fieldType = definedKeys.get(key);

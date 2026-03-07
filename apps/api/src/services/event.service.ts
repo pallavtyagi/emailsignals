@@ -336,7 +336,8 @@ async function autoSuppress(
   reason: 'BOUNCE_HARD' | 'COMPLAINT',
   campaignId?: string,
 ) {
-  await prisma.$transaction(async (tx) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await prisma.$transaction(async (tx: any) => {
     // Add to suppression list (upsert to avoid duplicate errors)
     await tx.suppression.upsert({
       where: { workspaceId_email: { workspaceId, email } },

@@ -157,7 +157,7 @@ export default function DomainDetailPage() {
     );
   }
 
-  const status = statusConfig[domain.status] || statusConfig.pending;
+  const status = (statusConfig[domain.status] ?? statusConfig['pending'])!;
 
   return (
     <div className="space-y-6">

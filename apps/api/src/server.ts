@@ -91,7 +91,7 @@ async function main() {
 
   // ── Error Handler ──────────────────────────────────────────
 
-  app.setErrorHandler((error, request, reply) => {
+  app.setErrorHandler((error: Error & { validation?: unknown; statusCode?: number }, request, reply) => {
     if (error instanceof AppError) {
       return reply.status(error.statusCode).send(error.toJSON());
     }
