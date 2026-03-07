@@ -1,6 +1,7 @@
 name: Deploy Infrastructure (Terraform)
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
@@ -40,7 +41,7 @@ jobs:
 
   apply:
     needs: plan
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: production
     steps:
