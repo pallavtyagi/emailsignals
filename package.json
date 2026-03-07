@@ -17,15 +17,19 @@
     "db:generate": "npm run db:generate --workspace=@signalwave/api",
     "db:push": "npm run db:push --workspace=@signalwave/api",
     "db:migrate": "npm run db:migrate --workspace=@signalwave/api",
-    "db:studio": "npm run db:studio --workspace=@signalwave/api"
+    "db:studio": "npm run db:studio --workspace=@signalwave/api",
+    "test": "turbo test",
+    "test:e2e": "npm run test:e2e --workspace=@signalwave/web"
   },
   "devDependencies": {
-    "turbo": "^2.3.0",
-    "prettier": "^3.4.0",
-    "typescript": "^5.7.0",
+    "@playwright/test": "^1.58.2",
     "@typescript-eslint/eslint-plugin": "^8.18.0",
     "@typescript-eslint/parser": "^8.18.0",
-    "eslint": "^9.16.0"
+    "eslint": "^9.16.0",
+    "prettier": "^3.4.0",
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.4"
   },
   "engines": {
     "node": ">=20.0.0"

@@ -1,21 +1,29 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
+import EmailEditor, { type EditorRef, type Editor } from 'react-email-editor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Save, Eye, Monitor, Smartphone, Loader2, Code, Braces } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { ArrowLeft, Save, Eye, Monitor, Smartphone, Loader2, Paintbrush, LayoutTemplate } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { TEMPLATE_CATEGORIES } from '@signalwave/shared';
+import { starterTemplates, type StarterTemplate } from '@/lib/starter-templates';
 import type { Template } from '@signalwave/shared';
 
 const categoryLabels: Record<string, string> = {
@@ -27,14 +35,6 @@ const categoryLabels: Record<string, string> = {
   transactional: 'Transactional',
 };
 
-const mergeTags = [
-  { label: 'First Name', tag: '{{first_name}}' },
-  { label: 'Last Name', tag: '{{last_name}}' },
-  { label: 'Email', tag: '{{email}}' },
-  { label: 'Company', tag: '{{company}}' },
-  { label: 'Unsubscribe Link', tag: '{{unsubscribe_url}}' },
-];
-
 interface TemplateEditorProps {
   template?: Template;
   mode: 'create' | 'edit';
@@ -44,71 +44,29 @@ export function TemplateEditor({ template, mode }: TemplateEditorProps) {
   const router = useRouter();
   const { getToken } = useAuth();
   const { toast } = useToast();
+  const emailEditorRef = useRef<EditorRef>(null);
 
   const [name, setName] = useState(template?.name || '');
   const [subject, setSubject] = useState(template?.subject || '');
   const [previewText, setPreviewText] = useState(template?.previewText || '');
-  const [html, setHtml] = useState(template?.html || getDefaultHtml());
   const [category, setCategory] = useState<string>(template?.category || '');
   const [saving, setSaving] = useState(false);
-  const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
+  const [editorReady, setEditorReady] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('editor');
+  const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
+  const [previewHtml, setPreviewHtml] = useState<string>('');
+  const [starterDialogOpen, setStarterDialogOpen] = useState(false);
 
-  function getDefaultHtml(): string {
-    return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Email Template</title>
-</head>
-<body style="margin:0; padding:0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px 0;">
-    <tr>
-      <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden;">
-          <tr>
-            <td style="padding: 40px 30px; text-align: center; background-color: #4f46e5;">
-              <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Your Company</h1>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 30px;">
-              <h2 style="color: #333333; margin-top: 0;">Hello {{first_name}},</h2>
-              <p style="color: #666666; line-height: 1.6;">
-                Write your email content here. Use merge tags to personalize your message.
-              </p>
-              <table cellpadding="0" cellspacing="0" style="margin: 20px 0;">
-                <tr>
-                  <td style="background-color: #4f46e5; border-radius: 6px; padding: 12px 24px;">
-                    <a href="#" style="color: #ffffff; text-decoration: none; font-weight: bold;">Call to Action</a>
-                  </td>
-                </tr>
-              </table>
-              <p style="color: #666666; line-height: 1.6;">
-                Thanks,<br>Your Team
-              </p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 20px 30px; text-align: center; background-color: #f8f9fa; border-top: 1px solid #e9ecef;">
-              <p style="color: #999999; font-size: 12px; margin: 0;">
-                You received this email because you subscribed.<br>
-                <a href="{{unsubscribe_url}}" style="color: #999999;">Unsubscribe</a>
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
-  }
-
-  const insertMergeTag = (tag: string) => {
-    setHtml((prev) => prev + tag);
-  };
+  const onEditorReady = useCallback(
+    (unlayer: Editor) => {
+      setEditorReady(true);
+      if (template?.editorJson) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        unlayer.loadDesign(template.editorJson as any);
+      }
+    },
+    [template?.editorJson]
+  );
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -120,28 +78,41 @@ export function TemplateEditor({ template, mode }: TemplateEditorProps) {
       return;
     }
 
+    const editor = emailEditorRef.current?.editor;
+    if (!editor) {
+      toast({ title: 'Editor not ready', description: 'Please wait for the editor to load.', variant: 'destructive' });
+      return;
+    }
+
     try {
       setSaving(true);
-      const token = await getToken();
+
+      const { html, design } = await new Promise<{ html: string; design: Record<string, unknown> }>((resolve) => {
+        editor.exportHtml((data: { html: string; design: Record<string, unknown> }) => {
+          resolve({ html: data.html, design: data.design });
+        });
+      });
+
       const payload = {
         name: name.trim(),
         subject: subject.trim(),
         previewText: previewText.trim() || undefined,
         html,
+        editorJson: design,
         category: category || undefined,
       };
 
       if (mode === 'edit' && template) {
         await api(`/templates/${template.id}`, {
           method: 'PUT',
-          token: token || undefined,
+          token: (await getToken()) || undefined,
           body: JSON.stringify(payload),
         });
         toast({ title: 'Template saved', description: 'Your changes have been saved.' });
       } else {
         await api('/templates', {
           method: 'POST',
-          token: token || undefined,
+          token: (await getToken()) || undefined,
           body: JSON.stringify(payload),
         });
         toast({ title: 'Template created', description: 'Your template has been created.' });
@@ -152,6 +123,32 @@ export function TemplateEditor({ template, mode }: TemplateEditorProps) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handlePreviewTab = (tab: string) => {
+    setActiveTab(tab);
+    if (tab === 'preview') {
+      const editor = emailEditorRef.current?.editor;
+      if (editor) {
+        editor.exportHtml((data: { html: string }) => {
+          setPreviewHtml(data.html);
+        });
+      }
+    }
+  };
+
+  const loadStarterTemplate = (starter: StarterTemplate) => {
+    const editor = emailEditorRef.current?.editor;
+    if (editor) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      editor.loadDesign(starter.design as any);
+    }
+    if (!name) setName(starter.name);
+    if (!subject) setSubject(starter.subject);
+    if (!previewText) setPreviewText(starter.previewText);
+    if (!category) setCategory(starter.category);
+    setStarterDialogOpen(false);
+    toast({ title: 'Template loaded', description: `"${starter.name}" template has been loaded into the editor.` });
   };
 
   return (
@@ -167,10 +164,42 @@ export function TemplateEditor({ template, mode }: TemplateEditorProps) {
             {mode === 'edit' ? 'Edit Template' : 'New Template'}
           </h1>
         </div>
-        <Button onClick={handleSave} disabled={saving}>
-          {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-          {mode === 'edit' ? 'Save Changes' : 'Create Template'}
-        </Button>
+        <div className="flex items-center gap-2">
+          {mode === 'create' && (
+            <Dialog open={starterDialogOpen} onOpenChange={setStarterDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" disabled={!editorReady}>
+                  <LayoutTemplate className="mr-2 h-4 w-4" />
+                  Start from Template
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Choose a Starter Template</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-3 sm:grid-cols-2 mt-4">
+                  {starterTemplates.map((starter) => (
+                    <button
+                      key={starter.name}
+                      className="text-left border rounded-lg p-4 hover:border-primary hover:bg-accent/50 transition-colors"
+                      onClick={() => loadStarterTemplate(starter)}
+                    >
+                      <p className="font-medium text-sm">{starter.name}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{starter.subject}</p>
+                      <Badge variant="secondary" className="mt-2 text-xs">
+                        {categoryLabels[starter.category] || starter.category}
+                      </Badge>
+                    </button>
+                  ))}
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+          <Button onClick={handleSave} disabled={saving || !editorReady}>
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            {mode === 'edit' ? 'Save Changes' : 'Create Template'}
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -229,23 +258,25 @@ export function TemplateEditor({ template, mode }: TemplateEditorProps) {
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <Braces className="h-4 w-4" />
+                <Paintbrush className="h-4 w-4" />
                 Merge Tags
               </CardTitle>
-              <CardDescription>Click to insert at cursor position.</CardDescription>
             </CardHeader>
             <CardContent>
+              <p className="text-xs text-muted-foreground mb-3">
+                Merge tags are available in the editor toolbar. Use the &quot;Merge Tags&quot; dropdown when editing text blocks to insert personalization fields.
+              </p>
               <div className="flex flex-wrap gap-2">
-                {mergeTags.map((mt) => (
-                  <Button
-                    key={mt.tag}
-                    variant="outline"
-                    size="sm"
-                    className="text-xs font-mono"
-                    onClick={() => insertMergeTag(mt.tag)}
-                  >
-                    {mt.tag}
-                  </Button>
+                {[
+                  '{{first_name}}',
+                  '{{last_name}}',
+                  '{{email}}',
+                  '{{company}}',
+                  '{{unsubscribe_url}}',
+                ].map((tag) => (
+                  <Badge key={tag} variant="secondary" className="text-xs font-mono">
+                    {tag}
+                  </Badge>
                 ))}
               </div>
             </CardContent>
@@ -257,11 +288,11 @@ export function TemplateEditor({ template, mode }: TemplateEditorProps) {
           <Card className="h-full">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <Tabs value={activeTab} onValueChange={handlePreviewTab}>
                   <TabsList>
                     <TabsTrigger value="editor">
-                      <Code className="mr-2 h-4 w-4" />
-                      HTML Editor
+                      <Paintbrush className="mr-2 h-4 w-4" />
+                      Editor
                     </TabsTrigger>
                     <TabsTrigger value="preview">
                       <Eye className="mr-2 h-4 w-4" />
@@ -290,41 +321,60 @@ export function TemplateEditor({ template, mode }: TemplateEditorProps) {
                   </div>
                 )}
               </div>
-              <div className="rounded-md bg-muted/50 border p-2 mt-2">
-                <p className="text-xs text-muted-foreground">
-                  A visual drag-and-drop editor (Unlayer) will be integrated in a future update.
-                  For now, edit the HTML directly or paste your email HTML below.
-                </p>
-              </div>
             </CardHeader>
             <CardContent>
-              {activeTab === 'editor' ? (
-                <Textarea
-                  value={html}
-                  onChange={(e) => setHtml(e.target.value)}
-                  className="font-mono text-sm min-h-[500px] resize-y"
-                  placeholder="Enter your email HTML here..."
+              {/* Editor Tab */}
+              <div style={{ display: activeTab === 'editor' ? 'block' : 'none' }}>
+                {!editorReady && (
+                  <div className="flex items-center justify-center py-16">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    <span className="ml-3 text-muted-foreground">Loading editor...</span>
+                  </div>
+                )}
+                <EmailEditor
+                  ref={emailEditorRef}
+                  onReady={onEditorReady}
+                  minHeight={600}
+                  options={{
+                    displayMode: 'email',
+                    features: {
+                      textEditor: {
+                        spellChecker: true,
+                      },
+                    },
+                    appearance: {
+                      theme: 'modern_light',
+                    },
+                    mergeTags: {
+                      first_name: { name: 'First Name', value: '{{first_name}}' },
+                      last_name: { name: 'Last Name', value: '{{last_name}}' },
+                      email: { name: 'Email', value: '{{email}}' },
+                      company: { name: 'Company', value: '{{company}}' },
+                      unsubscribe_url: { name: 'Unsubscribe Link', value: '{{unsubscribe_url}}' },
+                    },
+                  }}
                 />
-              ) : (
+              </div>
+
+              {/* Preview Tab */}
+              {activeTab === 'preview' && (
                 <div
                   className={`mx-auto border rounded-lg overflow-hidden bg-white transition-all ${
                     previewMode === 'mobile' ? 'max-w-[375px]' : 'max-w-full'
                   }`}
                 >
                   <div className="bg-muted px-3 py-2 border-b flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs font-mono">
-                        {previewMode === 'mobile' ? '375px' : '100%'}
-                      </Badge>
-                    </div>
+                    <Badge variant="outline" className="text-xs font-mono">
+                      {previewMode === 'mobile' ? '375px' : '100%'}
+                    </Badge>
                     <span className="text-xs text-muted-foreground">
                       {previewMode === 'desktop' ? 'Desktop' : 'Mobile'} Preview
                     </span>
                   </div>
                   <iframe
-                    srcDoc={html}
+                    srcDoc={previewHtml}
                     className="w-full border-0"
-                    style={{ height: '500px' }}
+                    style={{ height: '600px' }}
                     title="Email Preview"
                     sandbox="allow-same-origin"
                   />

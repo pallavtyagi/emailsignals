@@ -4,12 +4,15 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import multipart from '@fastify/multipart';
+import Redis from 'ioredis';
 import { registerRoutes } from './routes/index.js';
 import { prisma } from './db/client.js';
 import authPlugin from './middleware/auth.js';
 import { AppError } from './lib/errors.js';
 import { startAllWorkers, stopAllWorkers } from './workers/index.js';
-import { closeAllQueues } from './queues/index.js';
+import { closeAllQueues, getQueueStatus } from './queues/index.js';
+import startupValidation from './plugins/startup-validation.js';
+import requestContext from './plugins/request-context.js';
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const HOST = process.env.HOST || '0.0.0.0';
@@ -25,10 +28,21 @@ async function main() {
     },
   });
 
+  // ── Startup Validation ────────────────────────────────────
+
+  await app.register(startupValidation);
+
+  // ── Request Context ──────────────────────────────────────
+
+  await app.register(requestContext);
+
   // ── Security ───────────────────────────────────────────────
 
   await app.register(helmet, {
-    contentSecurityPolicy: false, // Handled by frontend
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   });
 
   // ── CORS ───────────────────────────────────────────────────
@@ -110,11 +124,56 @@ async function main() {
 
   // ── Health Check ───────────────────────────────────────────
 
-  app.get('/health', async () => ({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    version: process.env.npm_package_version || '0.1.0',
-  }));
+  app.get('/health', async () => {
+    const checks: Record<string, unknown> = {};
+    let status: 'ok' | 'degraded' = 'ok';
+
+    // Database check
+    try {
+      const dbStart = performance.now();
+      await prisma.$queryRawUnsafe('SELECT 1');
+      checks.database = { status: 'ok', latency: Math.round(performance.now() - dbStart) };
+    } catch {
+      checks.database = { status: 'error' };
+      status = 'degraded';
+    }
+
+    // Redis check
+    try {
+      const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+      const redis = new Redis(redisUrl, { lazyConnect: true, connectTimeout: 3000 });
+      const redisStart = performance.now();
+      await redis.ping();
+      checks.redis = { status: 'ok', latency: Math.round(performance.now() - redisStart) };
+      await redis.quit();
+    } catch {
+      checks.redis = { status: 'error' };
+      status = 'degraded';
+    }
+
+    // Memory
+    const mem = process.memoryUsage();
+    checks.memory = { rss: mem.rss, heapUsed: mem.heapUsed };
+
+    return {
+      status,
+      timestamp: new Date().toISOString(),
+      version: process.env.npm_package_version || '0.1.0',
+      uptime: Math.round(process.uptime()),
+      checks,
+    };
+  });
+
+  // ── Queue Health ─────────────────────────────────────────
+
+  app.get('/health/queues', async () => {
+    try {
+      const queues = await getQueueStatus();
+      return { status: 'ok', queues };
+    } catch {
+      return { status: 'error', message: 'Failed to fetch queue status' };
+    }
+  });
 
   // ── Register API Routes ────────────────────────────────────
 
