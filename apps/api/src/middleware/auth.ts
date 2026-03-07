@@ -46,7 +46,9 @@ async function authPlugin(app: FastifyInstance) {
     secretKey: process.env.CLERK_SECRET_KEY!,
   });
 
-  app.decorateRequest('auth', null as unknown as AuthContext);
+  if (!app.hasRequestDecorator('auth')) {
+    app.decorateRequest('auth', null as unknown as AuthContext);
+  }
 
   app.addHook('preHandler', async (request: FastifyRequest, reply: FastifyReply) => {
     // Skip auth for health check, webhooks (they have their own auth), and unsubscribe
