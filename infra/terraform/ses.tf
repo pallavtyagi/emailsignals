@@ -45,6 +45,7 @@ resource "aws_sns_topic_policy" "ses_events" {
 
 # Subscribe webhook endpoint to SNS topic
 resource "aws_sns_topic_subscription" "ses_webhook" {
+  count     = var.enable_sns_webhook ? 1 : 0
   topic_arn = aws_sns_topic.ses_events.arn
   protocol  = "https"
   endpoint  = var.webhook_api_endpoint

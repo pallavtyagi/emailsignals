@@ -33,3 +33,9 @@ variable "webhook_api_endpoint" {
   type        = string
   default     = "https://api.signalwave.com/v1/webhooks/ses"
 }
+
+variable "enable_sns_webhook" {
+  description = "Enable SNS webhook subscription (requires a reachable API endpoint)"
+  type        = bool
+  default     = false
+}
