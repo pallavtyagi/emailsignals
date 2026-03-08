@@ -23,6 +23,20 @@ export default function HomePage() {
             Sign In
           </Link>
         </div>
+        <div className="flex gap-6 justify-center pt-2">
+          <Link
+            href="/docs"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors underline underline-offset-4"
+          >
+            Documentation
+          </Link>
+          <Link
+            href="/docs/api"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors underline underline-offset-4"
+          >
+            API Reference
+          </Link>
+        </div>
       </div>
     </div>
   );
