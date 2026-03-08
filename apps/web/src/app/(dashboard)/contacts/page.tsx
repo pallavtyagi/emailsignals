@@ -57,12 +57,12 @@ export default function ContactsPage() {
       if (statusFilter !== 'all') params.set('status', statusFilter);
       if (tagFilter !== 'all') params.set('tag', tagFilter);
 
-      const data = await api<{ data: Contact[]; meta: { totalPages: number } }>(
+      const data = await api<{ data: Contact[]; total: number; nextCursor: string | null }>(
         `/contacts?${params.toString()}`,
         { token: token || undefined },
       );
       setContacts(data.data || []);
-      setTotalPages(data.meta?.totalPages || 1);
+      setTotalPages(data.total ? Math.ceil(data.total / 50) : 1);
     } catch {
       setContacts([]);
     } finally {

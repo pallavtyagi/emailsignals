@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@clerk/nextjs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -14,7 +13,6 @@ import {
   MailX,
   Send,
   Loader2,
-  Eye,
 } from 'lucide-react';
 import {
   LineChart,
@@ -27,15 +25,56 @@ import {
   Legend,
 } from 'recharts';
 import { api } from '@/lib/api';
-import type { WorkspaceOverview, TimeSeriesPoint, Campaign, CampaignStatsSummary } from '@signalwave/shared';
+import type { Campaign } from '@signalwave/shared';
+
+interface OverviewData {
+  totalSent: number;
+  totalDelivered: number;
+  avgOpenRate: number;
+  avgClickRate: number;
+  campaignsSent: number;
+  timeSeries: Array<{ date: string; sent: number; opens: number; clicks: number }>;
+}
+
+interface CampaignStats {
+  campaignId: string;
+  sent: number;
+  delivered: number;
+  deliveryRate: number;
+  uniqueOpens: number;
+  openRate: number;
+  uniqueClicks: number;
+  clickRate: number;
+  bouncedHard: number;
+  bouncedSoft: number;
+  unsubscribes: number;
+}
 
 interface CampaignWithStats extends Campaign {
-  stats?: CampaignStatsSummary;
+  stats?: CampaignStats;
+}
+
+function periodToDateRange(period: string): { from: string; to: string } {
+  const to = new Date();
+  const from = new Date();
+  switch (period) {
+    case '7d':
+      from.setDate(from.getDate() - 7);
+      break;
+    case '90d':
+      from.setDate(from.getDate() - 90);
+      break;
+    case '30d':
+    default:
+      from.setDate(from.getDate() - 30);
+      break;
+  }
+  return { from: from.toISOString(), to: to.toISOString() };
 }
 
 export default function AnalyticsPage() {
   const { getToken } = useAuth();
-  const [overview, setOverview] = useState<WorkspaceOverview | null>(null);
+  const [overview, setOverview] = useState<OverviewData | null>(null);
   const [campaigns, setCampaigns] = useState<CampaignWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('30d');
@@ -44,12 +83,48 @@ export default function AnalyticsPage() {
     try {
       setLoading(true);
       const token = await getToken();
+      const opts = { token: token || undefined };
+      const { from, to } = periodToDateRange(period);
+
+      // Fetch overview (API returns the object directly, not wrapped in { data: ... })
       const [overviewRes, campaignsRes] = await Promise.allSettled([
-        api<{ data: WorkspaceOverview }>(`/analytics/overview?period=${period}`, { token: token || undefined }),
-        api<{ data: CampaignWithStats[] }>('/analytics/campaigns', { token: token || undefined }),
+        api<OverviewData>(`/analytics/overview?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, opts),
+        api<{ data: Campaign[]; total: number }>('/campaigns?limit=20', opts),
       ]);
-      if (overviewRes.status === 'fulfilled') setOverview(overviewRes.value.data || null);
-      if (campaignsRes.status === 'fulfilled') setCampaigns(campaignsRes.value.data || []);
+
+      if (overviewRes.status === 'fulfilled') {
+        setOverview(overviewRes.value);
+      }
+
+      // For sent campaigns, fetch individual stats
+      if (campaignsRes.status === 'fulfilled') {
+        const allCampaigns = campaignsRes.value.data || [];
+        const sentCampaigns = allCampaigns.filter(
+          (c) => c.status.toLowerCase() === 'sent',
+        );
+
+        // Fetch stats for up to 10 sent campaigns
+        const withStats: CampaignWithStats[] = [];
+        const statsPromises = sentCampaigns.slice(0, 10).map(async (campaign) => {
+          try {
+            const stats = await api<CampaignStats>(
+              `/analytics/campaigns/${campaign.id}/stats`,
+              opts,
+            );
+            return { ...campaign, stats } as CampaignWithStats;
+          } catch {
+            return campaign as CampaignWithStats;
+          }
+        });
+
+        const results = await Promise.allSettled(statsPromises);
+        for (const result of results) {
+          if (result.status === 'fulfilled') {
+            withStats.push(result.value);
+          }
+        }
+        setCampaigns(withStats);
+      }
     } catch {
       // handled by state
     } finally {
@@ -78,8 +153,9 @@ export default function AnalyticsPage() {
   const totalSent = overview?.totalSent || 0;
   const totalDelivered = overview?.totalDelivered || 0;
   const deliveryRate = totalSent > 0 ? (totalDelivered / totalSent) * 100 : 0;
-  const openRate = (overview?.avgOpenRate || 0) * 100;
-  const clickRate = (overview?.avgClickRate || 0) * 100;
+  // API already returns these as percentages
+  const openRate = overview?.avgOpenRate || 0;
+  const clickRate = overview?.avgClickRate || 0;
   const bounceRate = totalSent > 0 ? ((totalSent - totalDelivered) / totalSent) * 100 : 0;
 
   return (
@@ -269,7 +345,7 @@ export default function AnalyticsPage() {
                         <span>
                           {campaign.stats.delivered.toLocaleString()}
                           <span className="text-xs text-muted-foreground ml-1">
-                            ({(campaign.stats.deliveryRate * 100).toFixed(0)}%)
+                            ({campaign.stats.deliveryRate.toFixed(0)}%)
                           </span>
                         </span>
                       ) : '-'}
@@ -279,7 +355,7 @@ export default function AnalyticsPage() {
                         <span>
                           {campaign.stats.uniqueOpens.toLocaleString()}
                           <span className="text-xs text-muted-foreground ml-1">
-                            ({(campaign.stats.openRate * 100).toFixed(0)}%)
+                            ({campaign.stats.openRate.toFixed(0)}%)
                           </span>
                         </span>
                       ) : '-'}
@@ -289,7 +365,7 @@ export default function AnalyticsPage() {
                         <span>
                           {campaign.stats.uniqueClicks.toLocaleString()}
                           <span className="text-xs text-muted-foreground ml-1">
-                            ({(campaign.stats.clickRate * 100).toFixed(0)}%)
+                            ({campaign.stats.clickRate.toFixed(0)}%)
                           </span>
                         </span>
                       ) : '-'}

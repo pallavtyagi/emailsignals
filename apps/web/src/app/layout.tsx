@@ -6,9 +6,6 @@ import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
 
-const hasValidClerkKey =
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.startsWith('pk_');
-
 export const metadata: Metadata = {
   title: 'SignalWave - Email Campaign Platform',
   description:
@@ -16,18 +13,14 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const content = (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
-        {children}
-        <Toaster />
-      </body>
-    </html>
+  return (
+    <ClerkProvider>
+      <html lang="en" suppressHydrationWarning>
+        <body className={inter.className}>
+          {children}
+          <Toaster />
+        </body>
+      </html>
+    </ClerkProvider>
   );
-
-  if (hasValidClerkKey) {
-    return <ClerkProvider>{content}</ClerkProvider>;
-  }
-
-  return content;
 }
