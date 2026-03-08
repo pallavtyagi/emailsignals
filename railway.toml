@@ -1,0 +1,9 @@
+[build]
+builder = "nixpacks"
+
+[build.nixpacks]
+installCmd = "npm install"
+buildCmd = "npx turbo build --filter=@signalwave/api... && cd apps/api && npx prisma generate"
+
+[deploy]
+startCommand = "cd apps/api && node dist/server.js"
